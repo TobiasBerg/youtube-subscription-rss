@@ -1,0 +1,10 @@
+[tools]
+go = "1.26"
+
+[tasks.refresh]
+run = "go run . create-secret"
+description = "Generate refresh token"
+
+[tasks.start]
+run = "go run . start"
+description = "Run main script"
