@@ -6,6 +6,7 @@ import (
 )
 
 type AppConfig struct {
+	Port                string `split_words:"true"`
 	YoutubeClientID     string `required:"true" split_words:"true"`
 	YoutubeClientSecret string `required:"true" split_words:"true"`
 	YoutubeRefreshToken string `required:"true" split_words:"true"`

@@ -16,8 +16,14 @@ func main() {
 		panic(err)
 	}
 
-	startCMD := &cli.Command{
-		Name:   "start",
+	serverCMD := &cli.Command{
+		Name:   "server",
+		Usage:  "Start the application server (default command)",
+		Action: cmd.StartServerCMD(cfg),
+	}
+
+	createFeedCMD := &cli.Command{
+		Name:   "generate-feed",
 		Usage:  "Start the application server (default command)",
 		Action: cmd.CreateFeedCMD(cfg),
 	}
@@ -31,9 +37,10 @@ func main() {
 	app := cli.Command{
 		Name:           "youtube-subscription-rss",
 		Description:    "Generate an Atom feed of the most recent videos from your YouTube subscriptions",
-		DefaultCommand: "start",
+		DefaultCommand: "server",
 		Commands: []*cli.Command{
-			startCMD,
+			serverCMD,
+			createFeedCMD,
 			listSubscriptionsCMD,
 		},
 	}

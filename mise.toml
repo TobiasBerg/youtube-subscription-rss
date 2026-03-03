@@ -5,6 +5,10 @@ go = "1.26"
 run = "go run . create-secret"
 description = "Generate refresh token"
 
-[tasks.start]
-run = "go run . start"
-description = "Run main script"
+[tasks.server]
+run = "go run . server"
+description = "Run server"
+
+[tasks.feed]
+run = "go run . generate-feed"
+description = "One time generation of feed"
