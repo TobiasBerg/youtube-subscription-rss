@@ -19,4 +19,4 @@ COPY --from=builder /app/youtube-subscription-rss .
 
 EXPOSE 8080
 
-ENTRYPOINT ["./youtube-subscription-rss"]
+ENTRYPOINT ["./youtube-subscription-rss", "server"]
