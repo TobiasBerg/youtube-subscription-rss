@@ -246,7 +246,7 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 	var wg sync.WaitGroup
 
 	// Buffered channel to limit concurrent workers
-	semaphore := make(chan struct{}, 10)
+	semaphore := make(chan struct{}, 25)
 
 	for _, channelID := range channelIDs {
 		wg.Add(1)
