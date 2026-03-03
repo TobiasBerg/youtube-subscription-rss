@@ -223,20 +223,20 @@ func extractFeedItems(feedXML, channelID string) []FeedItem {
 	return items
 }
 
-func GenerateFeed(ctx context.Context, cfg config.AppConfig) error {
+func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 	youtubeService, err := GetYouTubeService(
 		cfg.YoutubeClientID,
 		cfg.YoutubeClientSecret,
 		cfg.YoutubeRefreshToken,
 	)
 	if err != nil {
-		log.Fatalf("Error creating YouTube service: %v", err)
+		return nil, fmt.Errorf("error creating YouTube service: %w", err)
 	}
 
 	log.Println("Loading subscribed channels...")
 	channelIDs, err := LoadSubscribedChannelIDs(youtubeService)
 	if err != nil {
-		log.Fatalf("Error loading subscriptions: %v", err)
+		return nil, fmt.Errorf("error loading subscriptions: %w", err)
 	}
 	log.Printf("Found %d subscribed channels\n", len(channelIDs))
 
@@ -310,20 +310,10 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) error {
 		outputFeed.Entries = append(outputFeed.Entries, entry)
 	}
 
-	if err := os.MkdirAll("outputs", 0o755); err != nil {
-		log.Fatalf("Error creating outputs directory: %v", err)
-	}
-
 	output, err := xml.MarshalIndent(outputFeed, "", "  ")
 	if err != nil {
-		log.Fatalf("Error marshaling XML: %v", err)
+		return nil, fmt.Errorf("error marshaling XML: %w", err)
 	}
 
-	xmlOutput := []byte(xml.Header + string(output))
-	if err := os.WriteFile("outputs/feed.xml", xmlOutput, 0o644); err != nil {
-		log.Fatalf("Error writing feed.xml: %v", err)
-	}
-
-	log.Println("Successfully wrote outputs/feed.xml")
-	return nil
+	return []byte(xml.Header + string(output)), nil
 }
