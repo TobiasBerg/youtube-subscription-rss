@@ -43,7 +43,7 @@ func StartServerCMD(cfg config.AppConfig) func(ctx context.Context, c *cli.Comma
 			w.Write(data)
 		})
 
-		port := "3002"
+		port := "8080"
 		if len(cfg.Port) > 0 {
 			port = cfg.Port
 		}
