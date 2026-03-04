@@ -13,6 +13,7 @@ type AppConfig struct {
 	YoutubeClientID     string `required:"true" split_words:"true"`
 	YoutubeClientSecret string `required:"true" split_words:"true"`
 	YoutubeRefreshToken string `required:"true" split_words:"true"`
+	IncludeShorts       bool   `split_words:"true"`
 }
 
 func CreateConfig() (AppConfig, error) {

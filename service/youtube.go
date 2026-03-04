@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -275,7 +276,12 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 			continue
 		}
 		items := extractFeedItems(result.Feed, cid)
-		allItems = append(allItems, items...)
+		for _, item := range items {
+			if !cfg.IncludeShorts && strings.Contains(item.Entry.Link.Href, "/shorts/") {
+				continue
+			}
+			allItems = append(allItems, item)
+		}
 	}
 
 	log.Printf("Extracted %d total items from %d successful feeds (%d failed)\n",
