@@ -59,6 +59,17 @@ You can optionally set this if you want to include shorts in the feed:
 - `go run . refresh` or
 - `mise refresh`
 
+## Docker compose tips
+
+Since this was made to be run on your own, I recommend either pulling the git repo directly where 
+you want to run it, or to push it to your own registry.
+
+I can recommend this guide if you care about running your own registry: https://www.freecodecamp.org/news/how-to-self-host-a-container-registry/
+
+If you're just pulling the repo, an easy way to update is to pull latest changes and then run:
+
+`docker compose up --build -d` 
+
 ## Thanks
 
 This was based primarily on this project: 
