@@ -1,5 +1,6 @@
 services:
   youtube-rss:
+    container_name: youtube-rss
     build: .
     ports:
       - "8080:8080"
