@@ -37,6 +37,10 @@ Run this command and follow the steps to generate a refresh token
   - `YT_CLIENT_ID` — from your `credentials.json`
   - `YT_CLIENT_SECRET` — from your `credentials.json`
   - `YT_REFRESH_TOKEN` — from the refresh token command
+    
+You can optionally set this if you want to include shorts in the feed:
+
+- `YT_RSS_INCLUDE_SHORTS=true`
 
 ## Commands
 
