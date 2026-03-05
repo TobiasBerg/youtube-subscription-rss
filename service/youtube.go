@@ -120,6 +120,8 @@ type AtomFeed struct {
 	Title   string      `xml:"title"`
 	ID      string      `xml:"id"`
 	Updated string      `xml:"updated"`
+	Icon    string      `xml:"icon,omitempty"`
+	Logo    string      `xml:"logo,omitempty"`
 	Entries []AtomEntry `xml:"entry"`
 }
 
@@ -323,10 +325,16 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 	log.Printf("Keeping top %d items\n", len(top100))
 
 	outputFeed := AtomFeed{
-		Title:   "Top 100 Recent YouTube Channel Videos",
+		Title:   "Youtube Subscriptions",
 		ID:      "merged:youtube:subscriptions",
 		Updated: time.Now().UTC().Format(time.RFC3339),
 		Entries: make([]AtomEntry, 0, len(top100)),
+	}
+
+	if cfg.BaseURL != "" {
+		base := strings.TrimRight(cfg.BaseURL, "/")
+		outputFeed.Icon = base + "/favicon.ico"
+		outputFeed.Logo = base + "/android-chrome-512x512.png"
 	}
 
 	for _, item := range top100 {

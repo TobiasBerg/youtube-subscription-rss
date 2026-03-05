@@ -3,12 +3,14 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/TobiasBerg/youtube-subscription-rss/config"
 	"github.com/TobiasBerg/youtube-subscription-rss/service"
+	static "github.com/TobiasBerg/youtube-subscription-rss/static"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/urfave/cli/v3"
@@ -21,6 +23,15 @@ func StartServerCMD(cfg config.AppConfig) func(ctx context.Context, c *cli.Comma
 		r := chi.NewRouter()
 
 		r.Use(middleware.Logger)
+
+		// Serve embedded static assets (favicons, web manifest) at the root.
+		staticFS, err := fs.Sub(static.Files, ".")
+		if err != nil {
+			return fmt.Errorf("error creating static sub-FS: %w", err)
+		}
+		fileServer := http.FileServer(http.FS(staticFS))
+		r.Handle("/favicon.ico", fileServer)
+		r.Handle("/android-chrome-512x512.png", fileServer)
 
 		r.Get("/feed.xml", func(w http.ResponseWriter, r *http.Request) {
 			if data, ok := cache.Get(); ok {
