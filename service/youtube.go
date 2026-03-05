@@ -342,15 +342,6 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 		channelName := entry.Author.Name
 		entry.Title = fmt.Sprintf("[%s] %s", channelName, entry.Title)
 
-		thumbnailURL := entry.MediaGroup.Thumbnail.URL
-		if thumbnailURL == "" {
-			thumbnailURL = fmt.Sprintf("https://i.ytimg.com/vi/%s/hqdefault.jpg", entry.VideoID)
-		}
-		entry.Content = &AtomContent{
-			Type:    "html",
-			Content: fmt.Sprintf(`<a href="%s"><img src="%s" alt="%s" /></a>`, entry.Link.Href, thumbnailURL, entry.Title),
-		}
-
 		outputFeed.Entries = append(outputFeed.Entries, entry)
 	}
 
