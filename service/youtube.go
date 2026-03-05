@@ -125,15 +125,35 @@ type AtomFeed struct {
 
 // AtomEntry represents an Atom feed entry
 type AtomEntry struct {
-	XMLName   xml.Name   `xml:"entry"`
-	ID        string     `xml:"id"`
-	VideoID   string     `xml:"http://www.youtube.com/xml/schemas/2015 videoId"`
-	ChannelID string     `xml:"http://www.youtube.com/xml/schemas/2015 channelId"`
-	Title     string     `xml:"title"`
-	Link      AtomLink   `xml:"link"`
-	Author    AtomAuthor `xml:"author"`
-	Published string     `xml:"published"`
-	Updated   string     `xml:"updated"`
+	XMLName    xml.Name     `xml:"entry"`
+	ID         string       `xml:"id"`
+	VideoID    string       `xml:"http://www.youtube.com/xml/schemas/2015 videoId"`
+	ChannelID  string       `xml:"http://www.youtube.com/xml/schemas/2015 channelId"`
+	Title      string       `xml:"title"`
+	Link       AtomLink     `xml:"link"`
+	Author     AtomAuthor   `xml:"author"`
+	Published  string       `xml:"published"`
+	Updated    string       `xml:"updated"`
+	MediaGroup MediaGroup   `xml:"http://search.yahoo.com/mrss/ group"`
+	Content    *AtomContent `xml:"content,omitempty"`
+}
+
+// AtomContent represents an Atom content element with a type attribute
+type AtomContent struct {
+	Type    string `xml:"type,attr"`
+	Content string `xml:",chardata"`
+}
+
+// MediaGroup represents the media:group element in YouTube's Atom feed
+type MediaGroup struct {
+	Thumbnail MediaThumbnail `xml:"http://search.yahoo.com/mrss/ thumbnail"`
+}
+
+// MediaThumbnail represents the media:thumbnail element
+type MediaThumbnail struct {
+	URL    string `xml:"url,attr"`
+	Width  string `xml:"width,attr"`
+	Height string `xml:"height,attr"`
 }
 
 // AtomLink represents an Atom link element
@@ -313,6 +333,16 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 		entry := item.Entry
 		channelName := entry.Author.Name
 		entry.Title = fmt.Sprintf("[%s] %s", channelName, entry.Title)
+
+		thumbnailURL := entry.MediaGroup.Thumbnail.URL
+		if thumbnailURL == "" {
+			thumbnailURL = fmt.Sprintf("https://i.ytimg.com/vi/%s/hqdefault.jpg", entry.VideoID)
+		}
+		entry.Content = &AtomContent{
+			Type:    "html",
+			Content: fmt.Sprintf(`<a href="%s"><img src="%s" alt="%s" /></a>`, entry.Link.Href, thumbnailURL, entry.Title),
+		}
+
 		outputFeed.Entries = append(outputFeed.Entries, entry)
 	}
 
