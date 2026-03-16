@@ -192,33 +192,53 @@ var httpClient = &http.Client{
 	Timeout: 10 * time.Second,
 }
 
+var fetchBackoffDelays = []time.Duration{1 * time.Second, 2 * time.Second}
+
 func fetchFeed(ctx context.Context, channelID string) FeedResult {
 	url := getChannelFeedURL(channelID)
+	const maxAttempts = 3
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return FeedResult{ChannelID: channelID, Error: err}
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return FeedResult{ChannelID: channelID, Error: err}
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return FeedResult{
-			ChannelID: channelID,
-			Error:     fmt.Errorf("HTTP status: %d", resp.StatusCode),
+	var lastErr error
+	for attempt := range maxAttempts {
+		if attempt > 0 {
+			delay := fetchBackoffDelays[attempt-1]
+			log.Printf("Retrying feed for %s (attempt %d/%d) after %s: %v\n",
+				channelID, attempt+1, maxAttempts, delay, lastErr)
+			select {
+			case <-ctx.Done():
+				return FeedResult{ChannelID: channelID, Error: ctx.Err()}
+			case <-time.After(delay):
+			}
 		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return FeedResult{ChannelID: channelID, Error: err}
+		}
+
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("HTTP status: %d", resp.StatusCode)
+			continue
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		return FeedResult{ChannelID: channelID, Feed: string(body)}
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return FeedResult{ChannelID: channelID, Error: err}
-	}
-
-	return FeedResult{ChannelID: channelID, Feed: string(body)}
+	return FeedResult{ChannelID: channelID, Error: lastErr}
 }
 
 func extractFeedItems(feedXML, channelID string) []FeedItem {
@@ -226,6 +246,7 @@ func extractFeedItems(feedXML, channelID string) []FeedItem {
 
 	err := xml.Unmarshal([]byte(feedXML), &feed)
 	if err != nil {
+		log.Printf("Failed to parse feed XML for channel %s: %v\n", channelID, err)
 		return nil
 	}
 
@@ -269,7 +290,7 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 	var wg sync.WaitGroup
 
 	// Buffered channel to limit concurrent workers
-	semaphore := make(chan struct{}, 25)
+	semaphore := make(chan struct{}, 5)
 
 	for _, channelID := range channelIDs {
 		wg.Add(1)
@@ -291,6 +312,7 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 
 	var allItems []FeedItem
 	failedCount := 0
+	cutoff := time.Now().UTC().AddDate(0, 0, -cfg.MaxVideoAgeDays)
 	for cid, result := range feeds {
 		if result.Error != nil {
 			log.Printf("Failed to fetch feed for %s: %v\n", cid, result.Error)
@@ -300,6 +322,9 @@ func GenerateFeed(ctx context.Context, cfg config.AppConfig) ([]byte, error) {
 		items := extractFeedItems(result.Feed, cid)
 		for _, item := range items {
 			if !cfg.IncludeShorts && strings.Contains(item.Entry.Link.Href, "/shorts/") {
+				continue
+			}
+			if item.Published.Before(cutoff) {
 				continue
 			}
 			allItems = append(allItems, item)
