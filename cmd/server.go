@@ -21,7 +21,7 @@ import (
 
 func StartServerCMD(cfg config.AppConfig) func(ctx context.Context, c *cli.Command) error {
 	return func(ctx context.Context, c *cli.Command) error {
-		cache := service.NewFeedCache(15*time.Minute, cfg)
+		cache := service.NewFeedCache(time.Duration(cfg.RefreshInterval)*time.Minute, cfg)
 
 		go func() {
 			if err := cache.Start(); err != nil {
