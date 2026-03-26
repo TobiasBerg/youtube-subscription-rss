@@ -6,6 +6,9 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/TobiasBerg/youtube-subscription-rss/config"
@@ -18,13 +21,19 @@ import (
 
 func StartServerCMD(cfg config.AppConfig) func(ctx context.Context, c *cli.Command) error {
 	return func(ctx context.Context, c *cli.Command) error {
-		cache := service.NewFeedCache(15 * time.Minute)
+		cache := service.NewFeedCache(15*time.Minute, cfg)
+
+		go func() {
+			if err := cache.Start(); err != nil {
+				log.Printf("Cache failed to start: %v\n", err)
+				os.Exit(1)
+			}
+		}()
 
 		r := chi.NewRouter()
 
 		r.Use(middleware.Logger)
 
-		// Serve embedded static assets (favicons, web manifest) at the root.
 		staticFS, err := fs.Sub(static.Files, ".")
 		if err != nil {
 			return fmt.Errorf("error creating static sub-FS: %w", err)
@@ -34,21 +43,11 @@ func StartServerCMD(cfg config.AppConfig) func(ctx context.Context, c *cli.Comma
 		r.Handle("/android-chrome-512x512.png", fileServer)
 
 		r.Get("/feed.xml", func(w http.ResponseWriter, r *http.Request) {
-			if data, ok := cache.Get(); ok {
-				log.Println("Serving feed from cache")
-				w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-				w.Write(data)
+			data, ok := cache.Get()
+			if !ok {
+				http.Error(w, "feed not available yet, please retry shortly", http.StatusServiceUnavailable)
 				return
 			}
-
-			log.Println("Cache miss — regenerating feed")
-			data, err := service.GenerateFeed(r.Context(), cfg)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("error generating feed: %v", err), http.StatusInternalServerError)
-				return
-			}
-
-			cache.Set(data)
 
 			w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 			w.Write(data)
@@ -59,7 +58,27 @@ func StartServerCMD(cfg config.AppConfig) func(ctx context.Context, c *cli.Comma
 			port = cfg.Port
 		}
 
-		http.ListenAndServe(fmt.Sprintf(":%s", port), r)
-		return nil
+		server := &http.Server{
+			Addr:    fmt.Sprintf(":%s", port),
+			Handler: r,
+		}
+
+		go func() {
+			log.Printf("Server starting on port %s", port)
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Printf("Server error: %v\n", err)
+			}
+		}()
+
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+
+		log.Println("Shutting down server...")
+		cache.Stop()
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		return server.Shutdown(shutdownCtx)
 	}
 }
